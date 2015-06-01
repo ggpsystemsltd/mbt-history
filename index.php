@@ -10,8 +10,11 @@
  * licence that the MantisBT project is maintained under.
  * 
  * @package MantisBT
- * @copyright Copyright (c) 2014, Murray Crane/GGP Systems Limited 
- * 
+ * @author Murray Crane <murray.crane@ggpsystems.co.uk>
+ * @copyright (c) 2015, GGP Systems Limited
+ * @license BSD 3-clause license (see LICENSE)
+ * @version 1.1
+* 
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
