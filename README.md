@@ -14,8 +14,8 @@ maintained under.
  * Mantis Bug Table History
  * 
  * @author Murray Crane <murray.crane@ggpsystems.co.uk>
- * @copyright (c) 2014, GGP Systems Limited
+ * @copyright (c) 2015, GGP Systems Limited
  * @license BSD 3-clause license (see LICENSE)
- * @version 1.0
+ * @version 1.1
  */
 '''

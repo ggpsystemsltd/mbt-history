@@ -10,8 +10,11 @@
  * licence that the MantisBT project is maintained under.
  * 
  * @package MantisBT
- * @copyright Copyright (c) 2014, Murray Crane/GGP Systems Limited 
- * 
+ * @author Murray Crane <murray.crane@ggpsystems.co.uk>
+ * @copyright (c) 2015, GGP Systems Limited
+ * @license BSD 3-clause license (see LICENSE)
+ * @version 1.1
+* 
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -49,6 +52,23 @@ $status_ref_arr = array(
 	87 => 'Deferred',
 	90 => 'Closed',
 );
+
+$tester_ref_arr = array(
+    'Customer' => 'Customer',
+	'alanb' => 'Alan Bloor',
+	'callumb' => 'Callum Bryson',
+    'daniel' => 'Daniel Chong',
+    'davidj' => 'David James',
+	'dmitryk' => 'Dmitry Kuznetsov',
+	'keithp' => 'Keith Prosser',
+    'louisg' => 'Louis Genasi',
+    'murrayc' => 'Murray Crane',
+    'roger' => 'Roger Gill-Carey',
+    'ruzinab' => 'Ruzina Begum',
+	'simonm' => 'Simon Mason',
+    'tim maxwell' => 'Tim Maxwell',
+);
+
 
 $mbht_name = 'mantis_bug_history_table';
 $mbt_name = 'mantis_bug_table';
@@ -97,6 +117,7 @@ $t_end_date = filter_input( INPUT_POST, 'end_date', FILTER_VALIDATE_REGEXP, arra
 $t_new_project = filter_input( INPUT_POST, 'new_project', FILTER_VALIDATE_INT, array( 'options' => array( 'default' => 0 )));
 $t_final_status = filter_input( INPUT_POST, 'final_status', FILTER_VALIDATE_BOOLEAN, array( 'options' => array( 'default' => false )));
 $t_new_status = filter_input( INPUT_POST, 'new_status', FILTER_VALIDATE_INT, array( 'options' => array( 'default' => false, 'min_range' => 10, 'max_range' => 90 )));
+$t_new_user = filter_input( INPUT_POST, 'new_user', FILTER_SANITIZE_STRING );
 $t_show = filter_input( INPUT_POST, 'show', FILTER_VALIDATE_REGEXP, array( 'options' => array( 'default' => 'status', 'regexp' => '/^status|all$/' )));
 $t_show_status = true;
 if( $t_show == 'all' ) {
@@ -350,6 +371,19 @@ foreach( $status_ref_arr as $key => $value ) {
 					&nbsp;
 					<label for="final_status">Show final status only</label>
 					<input type="checkbox" name="final_status" id="final_status" <?php echo ( $t_final_status ) ? "checked" : "";?>/>
+					<br/>
+					<label for="new_user">Filter by User</label><br/>
+					<select name="new_user" id="new_user">
+						<option value="0"<?php echo ( !$t_new_user ) ? " selected" : "";?>>&nbsp;</option>
+<?php
+// Populate user drop-down here...
+foreach( $tester_ref_arr as $key => $value ) {
+	echo "						<option value='$key'";
+	echo ( $t_new_user === $key ) ? " selected" : "";
+	echo ">$value</option>" . PHP_EOL;
+}
+?>
+					</select>
 				</fieldset>
 				<p>
 					<input type="submit" name="action" value="Update" />
@@ -430,19 +464,6 @@ $resolution_ref_arr = array(
 	90 => 'won\'t fix',
 );
 
-$tester_ref_arr = array(
-    'Customer' => 'Customer',
-	'carlw' => 'Carl Whelan',
-    'daniel' => 'Daniel Chong',
-    'davidj' => 'David James',
-    'johnc' => 'John Cooper',
-    'louisg' => 'Louis Genasi',
-    'murrayc' => 'Murray Crane',
-    'roger' => 'Roger Gill-Carey',
-    'ruzinab' => 'Ruzina Begum',
-    'tim maxwell' => 'Tim Maxwell',
-);
-
 try {
 	$t_query = "SELECT * FROM $mbht_name WHERE";
 	if( $t_show_status ) {
@@ -469,38 +490,6 @@ try {
 catch( PDOException $e ) {
 	echo $e->getMessage();
 }
-
-/* DEBUGGING CODE - murrayc
-if( !$t_show_status ) {
-	$bug_history_arr = array_keys( $bug_id_arr, 3751 );
-    $t_row_toggle = 1;
-    echo '<table>' . PHP_EOL;
-    echo '<tbody>' . PHP_EOL;
-    echo '<tr class="th">' . PHP_EOL;
-    echo '<td>User ID</td>' . PHP_EOL;
-    echo '<td>Bug ID</td>' . PHP_EOL;
-    echo '<td>Field Name</td>' . PHP_EOL;
-    echo '<td>Old Value</td>' . PHP_EOL;
-    echo '<td>New Value</td>' . PHP_EOL;
-    echo '<td>Type</td>' . PHP_EOL;
-    echo '<td>Date Modified</td>' . PHP_EOL;
-    echo '</tr>' . PHP_EOL;
-    foreach( $bug_history_arr as $t_bug_history_id ) {
-        echo '<tr class="tr' . $t_row_toggle . '">' . PHP_EOL;
-        echo '<td>' . $user_id_arr[ $t_bug_history_id ] . '</td>' . PHP_EOL;
-        echo '<td>' . $bug_id_arr[ $t_bug_history_id ] . '</td>' . PHP_EOL;
-        echo '<td>' . $field_name_arr[ $t_bug_history_id ] . '</td>' . PHP_EOL;
-        echo '<td>' . $old_value_arr[ $t_bug_history_id ] . '</td>' . PHP_EOL;
-        echo '<td>' . $new_value_arr[ $t_bug_history_id ] . '</td>' . PHP_EOL;
-        echo '<td>' . $type_arr[ $t_bug_history_id ] . '</td>' . PHP_EOL;
-        echo '<td>' . $date_modified_arr[ $t_bug_history_id ] . '</td>' . PHP_EOL;
-        echo '</tr>' . PHP_EOL;
-        ( $t_row_toggle==1 ? $t_row_toggle++ : $t_row_toggle-- );
-    }
-    echo '</tbody>' . PHP_EOL;
-    echo '</table>' . PHP_EOL;
-    die();
-} */
 
 $issue_arr = array_unique( $bug_id_arr, SORT_NUMERIC );
 sort( $issue_arr, SORT_NUMERIC );
@@ -559,17 +548,18 @@ foreach( $t_issue_arr as $bug_id ) {
     if( $t_tester!='' ) {
         $t_assigned_tester .= ' (' . $tester_ref_arr[ $t_tester ] . ')';
     }
-	echo '			<table>' . PHP_EOL;
-	echo '				<tbody>' . PHP_EOL;
-	echo '					<tr class="th">' . PHP_EOL;
-	echo '						<td style="width: 25%"><strong>ID</strong>: <a class="th" href="' . $t_mantis_view_bug_url . $bug_id . '">' . $bug_id . '</a></td>' . PHP_EOL;
-	echo '						<td style="width: 25%"><strong>Assigned To</strong>: ' . $handler_name_arr[ $bug_id ] . $t_assigned_tester . '</td>' . PHP_EOL;
-	echo '						<td style="width: 25%"><strong>Status</strong>: ' . $status_arr[ $bug_id ] . '</td>' . PHP_EOL;
-	echo '						<td style="width: 25%"><strong>Date Submitted</strong>: ' . $date_submitted_arr[ $bug_id ] . '</td>' . PHP_EOL;
-	echo '					</tr>' . PHP_EOL;
-	echo '					<tr>' . PHP_EOL;
-	echo '						<td colspan="4" class="tr1"><strong>Summary</strong>: ' . $summary_arr[ $bug_id ] . '</td>' . PHP_EOL;
-	echo '					</tr>' . PHP_EOL;
+	if( $t_new_user=="0" || $handler_name_arr[ $bug_id ] === $tester_ref_arr[ $t_new_user ] || $t_tester === $t_new_user ) {
+		echo '			<table>' . PHP_EOL;
+		echo '				<tbody>' . PHP_EOL;
+		echo '					<tr class="th">' . PHP_EOL;
+		echo '						<td style="width: 25%"><strong>ID</strong>: <a class="th" href="' . $t_mantis_view_bug_url . $bug_id . '">' . $bug_id . '</a></td>' . PHP_EOL;
+		echo '						<td style="width: 25%"><strong>Assigned To</strong>: ' . $handler_name_arr[ $bug_id ] . $t_assigned_tester . '</td>' . PHP_EOL;
+		echo '						<td style="width: 25%"><strong>Status</strong>: ' . $status_arr[ $bug_id ] . '</td>' . PHP_EOL;
+		echo '						<td style="width: 25%"><strong>Date Submitted</strong>: ' . $date_submitted_arr[ $bug_id ] . '</td>' . PHP_EOL;
+		echo '					</tr>' . PHP_EOL;
+		echo '					<tr>' . PHP_EOL;
+		echo '						<td colspan="4" class="tr1"><strong>Summary</strong>: ' . $summary_arr[ $bug_id ] . '</td>' . PHP_EOL;
+		echo '					</tr>' . PHP_EOL;
 ?>
 					<tr class="th">
 						<th>Date Modified</th>
@@ -578,122 +568,123 @@ foreach( $t_issue_arr as $bug_id ) {
 						<th>Change</th>
 					</tr>
 <?php
-	$bug_history_arr = array_keys( $bug_id_arr, $bug_id );
-    $t_mantis_url = "http://svn.ggpsystems.co.uk/mantis/bug_revision_view_page.php?";
-	$i = 1;
-	if( $t_final_status ) {
-		$bug_history_arr = array_reverse( $bug_history_arr );
-	}
-	foreach( $bug_history_arr as $bug_history_id ) {
-		echo '					<tr class="tr' . $i . '">' . PHP_EOL;
-		echo "						<td>" . date( 'Y-m-d H:i', $date_modified_arr[ $bug_history_id ]) . "</td>" . PHP_EOL;
-		echo "						<td>" . $user_name_arr[ $user_id_arr[ $bug_history_id ]] . "</td>" . PHP_EOL;
-		$t_field_name = str_replace( '_', ' ', ucfirst( $field_name_arr[ $bug_history_id ]) );
-		switch( $type_arr[ $bug_history_id ] ) {
-			case 0:	// Normal type changes
-				switch( $field_name_arr[ $bug_history_id ] ) {
-					case 'Actual Result':
-					case 'Customer Defect ID':
-					case 'Customer Priority':
-					case 'Customer Severity':
-					case 'Documentation Update Required':
-					case 'Documentation Updated Description':
-					case 'Expected Result':
-					case 'Reported in Revision':
-					case 'Resolution Details':
-					case 'Sugar Case Number':
-					case 'summary':
-					case 'target_version':
-                    case 'Test Cases':
-					case 'Tested in Revision':
-						$t_changes = htmlentities( $old_value_arr[ $bug_history_id ]) . " => " . htmlentities( $new_value_arr[ $bug_history_id ]);
-						break;
-					case 'Assigned Tester':
-						$t_changes = $tester_ref_arr[ $old_value_arr[ $bug_history_id ]] . " => " . $tester_ref_arr[ $new_value_arr[ $bug_history_id ]];
-						break;
-					case 'fixed_in_version':
-						$t_changes = $old_value_arr[ $bug_history_id ] . " => " . $new_value_arr[ $bug_history_id ];
-						break;
-					case 'handler_id':
-						$t_field_name = 'Assigned to';
-						$t_changes = $user_name_arr[ $old_value_arr[ $bug_history_id ]] . " => " . $user_name_arr[ $new_value_arr[ $bug_history_id ]];
-						break;
-					case 'priority':
-						$t_changes = ucfirst( $priority_ref_arr[ $old_value_arr[ $bug_history_id ]]) . " => " . ucfirst( $priority_ref_arr[ $new_value_arr[ $bug_history_id ]]);
-						break;
-					case 'project_id':
-						$t_field_name = 'Project';
-						$t_changes = $project_name_arr[ $old_value_arr[ $bug_history_id ]] . " => " . $project_name_arr[ $new_value_arr[ $bug_history_id ]];
-						break;
-					case 'reproducibility':
-						$t_changes = ucfirst( $reproducibility_ref_arr[ $old_value_arr[ $bug_history_id ]]) . " => " . ucfirst( $reproducibility_ref_arr[ $new_value_arr[ $bug_history_id ]]);
-						break;
-					case 'resolution':
-						$t_changes = ucfirst( $resolution_ref_arr[ $old_value_arr[ $bug_history_id ]]) . " => " . ucfirst( $resolution_ref_arr[ $new_value_arr[ $bug_history_id ]]);
-						break;
-					default:
-						$t_changes = ucfirst( $status_ref_arr[ $old_value_arr[ $bug_history_id ]]) . " => " . ucfirst( $status_ref_arr[ $new_value_arr[ $bug_history_id ]]);
-				}
-				break;
-            case 2:	// Note added
-            case 3:	// Note edited
-            case 4:	// Note deleted
-                $t_bugnote_id = ( int )ltrim( $old_value_arr[ $bug_history_id ], '0' );
-                $t_revision_id = ( int )$new_value_arr[ $bug_history_id ];
-				$t_field_name = $type_ref_arr[ $type_arr[ $bug_history_id ]] . ": " . $old_value_arr[ $bug_history_id ];
-                if( $type_arr[ $bug_history_id ] == 3 ) {
-					$t_changes = "<a href='{$t_mantis_url}bugnote_id={$t_bugnote_id}#r{$t_revision_id}'>View revisions</a>";
-                } else {
-					$t_changes = "&nbsp";
-                }
-                break;
-            case 6:	// Description updated
-            case 7:	// Additional Information updated
-            case 8:	// Steps to Reproduce updated
-				$t_field_name = $type_ref_arr[ $type_arr[ $bug_history_id ]];
-				$t_changes = "<a href='{$t_mantis_url}rev_id={$old_value_arr[ $bug_history_id ]}#r{$old_value_arr[ $bug_history_id ]}'>View revisions</a>";
-                break;
-			case 12: // Issue monitored
-			case 13: // Issue end monitor
-				$t_field_name = $type_ref_arr[ $type_arr[ $bug_history_id ]];
-				$t_changes = $user_name_arr[ $old_value_arr[ $bug_history_id ]];
-				break;
-            case 18:	// Relationship added
-            case 19:	// Relationship deleted
-            case 23:	// Relationship replaced
-                $t_new_relationship_value = sprintf( '%07d', ( int )$new_value_arr[ $bug_history_id ]);
-				$t_field_name = $type_ref_arr[ $type_arr[ $bug_history_id ]];
-				$t_changes = ucfirst( $relationship_ref_arr[ $old_value_arr[ $bug_history_id ]]) . " " . $t_new_relationship_value;
-				break;
-			case 100:	// SCI changeset
-				$t_action = array_pop( explode( ' ', $t_field_name ));
-				switch( $t_action ) {
-					case "attached":
-						$t_changes = $new_value_arr[ $bug_history_id ];
-						break;
-					case "removed":
-						$t_changes = $old_value_arr[ $bug_history_id ];
-						break;
-				}
-				break;
-			default:
-				$t_field_name = $type_ref_arr[ $type_arr[ $bug_history_id ]];
-				$t_changes = $old_value_arr[ $bug_history_id ];
-		}
-		// The future - make two variables and have a single pair of echos
-		echo "						<td>" . ucfirst( $t_field_name ) . "</td>" . PHP_EOL;
-		echo "						<td>" . $t_changes . "</td>" . PHP_EOL;
-		echo '					</tr>' . PHP_EOL;
-		( $i==1 ? $i++ : $i-- );
+		$bug_history_arr = array_keys( $bug_id_arr, $bug_id );
+		$t_mantis_url = "http://svn.ggpsystems.co.uk/mantis/bug_revision_view_page.php?";
+		$i = 1;
 		if( $t_final_status ) {
-			break;
+			$bug_history_arr = array_reverse( $bug_history_arr );
 		}
-	}
+		foreach( $bug_history_arr as $bug_history_id ) {
+			echo '					<tr class="tr' . $i . '">' . PHP_EOL;
+			echo "						<td>" . date( 'Y-m-d H:i', $date_modified_arr[ $bug_history_id ]) . "</td>" . PHP_EOL;
+			echo "						<td>" . $user_name_arr[ $user_id_arr[ $bug_history_id ]] . "</td>" . PHP_EOL;
+			$t_field_name = str_replace( '_', ' ', ucfirst( $field_name_arr[ $bug_history_id ]) );
+			switch( $type_arr[ $bug_history_id ] ) {
+				case 0:	// Normal type changes
+					switch( $field_name_arr[ $bug_history_id ] ) {
+						case 'Actual Result':
+						case 'Customer Defect ID':
+						case 'Customer Priority':
+						case 'Customer Severity':
+						case 'Documentation Update Required':
+						case 'Documentation Updated Description':
+						case 'Expected Result':
+						case 'Reported in Revision':
+						case 'Resolution Details':
+						case 'Sugar Case Number':
+						case 'summary':
+						case 'target_version':
+						case 'Test Cases':
+						case 'Tested in Revision':
+							$t_changes = htmlentities( $old_value_arr[ $bug_history_id ]) . " => " . htmlentities( $new_value_arr[ $bug_history_id ]);
+							break;
+						case 'Assigned Tester':
+							$t_changes = $tester_ref_arr[ $old_value_arr[ $bug_history_id ]] . " => " . $tester_ref_arr[ $new_value_arr[ $bug_history_id ]];
+							break;
+						case 'fixed_in_version':
+							$t_changes = $old_value_arr[ $bug_history_id ] . " => " . $new_value_arr[ $bug_history_id ];
+							break;
+						case 'handler_id':
+							$t_field_name = 'Assigned to';
+							$t_changes = $user_name_arr[ $old_value_arr[ $bug_history_id ]] . " => " . $user_name_arr[ $new_value_arr[ $bug_history_id ]];
+							break;
+						case 'priority':
+							$t_changes = ucfirst( $priority_ref_arr[ $old_value_arr[ $bug_history_id ]]) . " => " . ucfirst( $priority_ref_arr[ $new_value_arr[ $bug_history_id ]]);
+							break;
+						case 'project_id':
+							$t_field_name = 'Project';
+							$t_changes = $project_name_arr[ $old_value_arr[ $bug_history_id ]] . " => " . $project_name_arr[ $new_value_arr[ $bug_history_id ]];
+							break;
+						case 'reproducibility':
+							$t_changes = ucfirst( $reproducibility_ref_arr[ $old_value_arr[ $bug_history_id ]]) . " => " . ucfirst( $reproducibility_ref_arr[ $new_value_arr[ $bug_history_id ]]);
+							break;
+						case 'resolution':
+							$t_changes = ucfirst( $resolution_ref_arr[ $old_value_arr[ $bug_history_id ]]) . " => " . ucfirst( $resolution_ref_arr[ $new_value_arr[ $bug_history_id ]]);
+							break;
+						default:
+							$t_changes = ucfirst( $status_ref_arr[ $old_value_arr[ $bug_history_id ]]) . " => " . ucfirst( $status_ref_arr[ $new_value_arr[ $bug_history_id ]]);
+					}
+					break;
+				case 2:	// Note added
+				case 3:	// Note edited
+				case 4:	// Note deleted
+					$t_bugnote_id = ( int )ltrim( $old_value_arr[ $bug_history_id ], '0' );
+					$t_revision_id = ( int )$new_value_arr[ $bug_history_id ];
+					$t_field_name = $type_ref_arr[ $type_arr[ $bug_history_id ]] . ": " . $old_value_arr[ $bug_history_id ];
+					if( $type_arr[ $bug_history_id ] == 3 ) {
+						$t_changes = "<a href='{$t_mantis_url}bugnote_id={$t_bugnote_id}#r{$t_revision_id}'>View revisions</a>";
+					} else {
+						$t_changes = "&nbsp";
+					}
+					break;
+				case 6:	// Description updated
+				case 7:	// Additional Information updated
+				case 8:	// Steps to Reproduce updated
+					$t_field_name = $type_ref_arr[ $type_arr[ $bug_history_id ]];
+					$t_changes = "<a href='{$t_mantis_url}rev_id={$old_value_arr[ $bug_history_id ]}#r{$old_value_arr[ $bug_history_id ]}'>View revisions</a>";
+					break;
+				case 12: // Issue monitored
+				case 13: // Issue end monitor
+					$t_field_name = $type_ref_arr[ $type_arr[ $bug_history_id ]];
+					$t_changes = $user_name_arr[ $old_value_arr[ $bug_history_id ]];
+					break;
+				case 18:	// Relationship added
+				case 19:	// Relationship deleted
+				case 23:	// Relationship replaced
+					$t_new_relationship_value = sprintf( '%07d', ( int )$new_value_arr[ $bug_history_id ]);
+					$t_field_name = $type_ref_arr[ $type_arr[ $bug_history_id ]];
+					$t_changes = ucfirst( $relationship_ref_arr[ $old_value_arr[ $bug_history_id ]]) . " " . $t_new_relationship_value;
+					break;
+				case 100:	// SCI changeset
+					$t_action = array_pop( explode( ' ', $t_field_name ));
+					switch( $t_action ) {
+						case "attached":
+							$t_changes = $new_value_arr[ $bug_history_id ];
+							break;
+						case "removed":
+							$t_changes = $old_value_arr[ $bug_history_id ];
+							break;
+					}
+					break;
+				default:
+					$t_field_name = $type_ref_arr[ $type_arr[ $bug_history_id ]];
+					$t_changes = $old_value_arr[ $bug_history_id ];
+			}
+			// The future - make two variables and have a single pair of echos
+			echo "						<td>" . ucfirst( $t_field_name ) . "</td>" . PHP_EOL;
+			echo "						<td>" . $t_changes . "</td>" . PHP_EOL;
+			echo '					</tr>' . PHP_EOL;
+			( $i==1 ? $i++ : $i-- );
+			if( $t_final_status ) {
+				break;
+			}
+		}
 ?>
 				</tbody>
 			</table>
 			<br/>
 <?php
+	}
 }
 
 function check_selected( $p_var, $p_val = true ) {
