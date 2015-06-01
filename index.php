@@ -375,6 +375,7 @@ foreach( $status_ref_arr as $key => $value ) {
 					<label for="new_user">Filter by User</label><br/>
 					<select name="new_user" id="new_user">
 						<option value="0"<?php echo ( !$t_new_user ) ? " selected" : "";?>>&nbsp;</option>
+						<option value="1"<?php echo ( $t_new_user ) ? " selected" : "";?>><i>QA/Testers</i></option>
 <?php
 // Populate user drop-down here...
 foreach( $tester_ref_arr as $key => $value ) {
@@ -548,7 +549,22 @@ foreach( $t_issue_arr as $bug_id ) {
     if( $t_tester!='' ) {
         $t_assigned_tester .= ' (' . $tester_ref_arr[ $t_tester ] . ')';
     }
-	if( $t_new_user=="0" || $handler_name_arr[ $bug_id ] === $tester_ref_arr[ $t_new_user ] || $t_tester === $t_new_user ) {
+	$t_display_flag = false;
+	if( $t_new_user == "0" ) {
+		$t_display_flag = true;
+	} elseif( $t_new_user == "1" ) {
+		if( $handler_name_arr[ $bug_id ] === "Callum Bryson" ||
+				$handler_name_arr[ $bug_id ] === "Louis Genasi" ||
+				$tester_ref_arr[ $t_tester ] === "Callum Bryson" ||
+				$tester_ref_arr[ $t_tester ] === "Louis Genasi" ) {
+			$t_display_flag = true;
+		}
+	} elseif( $handler_name_arr[ $bug_id ] === $tester_ref_arr[ $t_new_user ] || 
+			$t_tester === $t_new_user ) {
+		$t_display_flag = true;
+	}
+	if( $t_display_flag ) {
+		// Need to search for both Callum and Louis
 		echo '			<table>' . PHP_EOL;
 		echo '				<tbody>' . PHP_EOL;
 		echo '					<tr class="th">' . PHP_EOL;
