@@ -13,7 +13,7 @@
  * @author Murray Crane <murray.crane@ggpsystems.co.uk>
  * @copyright (c) 2015, GGP Systems Limited
  * @license BSD 3-clause license (see LICENSE)
- * @version 1.3
+ * @version 2.0
 * 
  * All rights reserved.
  * 
@@ -85,18 +85,7 @@ $dsn = array(
 	'database' => "bugtracker"
 		);
 
-$version_string = " v1.3";
-
-use PDO;
-global $dbh;
-try {
-	// MySQL PDO handle to intranet database 
-	$dbh = new PDO( "mysql:host={$dsn['hostspec']};dbname={$dsn['database']}",$dsn['username'],$dsn['password'] );
-	$dbh->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION );
-}
-catch( PDOException $e ) {
-	echo $e->getMessage();
-}
+$version_string = " v2.0";
 
 if( date( 'w' ) == 1 ) {
 	$yesterday_start = strtotime( 'last friday midnight' );
@@ -282,9 +271,7 @@ if( !empty( $t_duration )) {
 	<div>
 		<div class="head">
 			<h1>GGP Systems Limited</h1>
-<?php
-echo "			<h2>$period_string in MantisBT $version_string</h2>" . PHP_EOL;
-?>
+<?php echo "			<h2>$period_string in MantisBT $version_string</h2>" . PHP_EOL; ?>
 		</div>
 		<div>
 			<form method="post" action="index.php">
@@ -310,29 +297,29 @@ echo "			<h2>$period_string in MantisBT $version_string</h2>" . PHP_EOL;
 					<label for="new_project">Filter by Project</label><br/>
 					<select name="new_project" id="new_project">
 						<option value="0"<?php echo ( $t_new_project===0 ) ? "selected" : "";?>>All Projects</option>
-<?php
-// Populate projects drop-down here...
-$projects_arr = array();
-try {
-	$sth = $dbh->query( "SELECT p.id, p.name, ph.parent_id "
-			. "FROM $mpt_name p "
-			. "LEFT JOIN $mpult_name u "
-			. "ON p.id = u.project_id AND u.user_id = 2 "
-			. "LEFT JOIN $mpht_name ph "
-			. "ON ph.child_id = p.id "
-			. "WHERE (p.view_state = 10 "
-			. "OR (p.view_state = 50 "
-			. "AND u.user_id = 2 )) "
-			. "ORDER BY p.name" );
-	$sth->setFetchMode( PDO::FETCH_ASSOC );
-	while( $row = $sth->fetch()) {
-		$project_name_arr[ $row[ 'id' ]] = $row[ 'name' ];
-		$projects_arr[ $row[ 'id' ]] = ( $row[ 'parent_id' ] === NULL ) ? 0 : $row[ 'parent_id' ];
-	}
-} catch( PDOException $e) {
-	echo $e->getMessage();
+<?php $dbh_mantisbt = new mysqli( $dsn[ 'hostspec' ], $dsn[ 'username' ], 
+		$dsn[ 'password' ], $dsn[ 'database' ] );
+if ( $dbh_mantisbt->connect_errno ) {
+	die( "Failed to connect to MySQL: " . $dbh_mantisbt->connect_error() );
 }
-$prune_arr = array();
+
+// Populate projects drop-down here...
+$query = "SELECT p.id, p.name, ph.parent_id "
+		. "FROM $mpt_name p "
+		. "LEFT JOIN $mpult_name u "
+		. "ON p.id = u.project_id AND u.user_id = 2 "
+		. "LEFT JOIN $mpht_name ph "
+		. "ON ph.child_id = p.id "
+		. "WHERE (p.view_state = 10 "
+		. "OR (p.view_state = 50 "
+		. "AND u.user_id = 2)) "
+		. "ORDER BY p.name";
+$result = $dbh_mantisbt->query( $query );
+while( $row = $result->fetch_assoc() ) {
+	$project_name_arr[ (int) $row[ 'id' ]] = $row[ 'name' ];
+	$projects_arr[ (int) $row[ 'id' ]] = ( (int) $row[ 'parent_id' ] === NULL ) ? 0 : (int) $row[ 'parent_id' ];
+}
+unset($row); $result->close();
 foreach( $projects_arr as $id => $parent ) {
 	if(( $parent !== 0 ) && isset( $projects_arr[ $parent ])) {
 		$prune_arr[] = $id;
@@ -347,12 +334,12 @@ $projects_arr = array_keys( $projects_arr );
 $project_count = count( $projects_arr );
 for( $i = 0; $i < $project_count; $i++ ) {
 	$id = $projects_arr[ $i ];
-	if( project_get_field( $id, 'enabled' ) == 1 ) {
+	if( (int) project_get_field( $dbh_mantisbt, $id, 'enabled' ) == 1 ) {
 		echo "						<option value='$id'";
 		check_selected( $t_new_project, $id );
-		echo ">" . project_get_field( $id, 'name' ) . "</option>" . PHP_EOL;
+		echo ">" . project_get_field( $dbh_mantisbt, $id, 'name' ) . "</option>" . PHP_EOL;
 		// Subprojects
-		print_subproject_list( $id, $t_new_project, null, true, array());
+		print_subproject_list( $dbh_mantisbt, $id, $t_new_project, null, true, array());
 	}
 }
 ?>
@@ -361,8 +348,7 @@ for( $i = 0; $i < $project_count; $i++ ) {
 					<label for="new_status">Filter by Status</label><br/>
 					<select name="new_status" id="new_status">
 						<option value="0"<?php echo ( !$t_new_status ) ? " selected" : "";?>>&nbsp;</option>
-<?php
-// Populate status drop-down here...
+<?php // Populate status drop-down here...
 foreach( $status_ref_arr as $key => $value ) {
 	echo "						<option value='$key'";
 	echo ( $t_new_status === $key ) ? " selected" : "";
@@ -378,8 +364,7 @@ foreach( $status_ref_arr as $key => $value ) {
 					<select name="new_user" id="new_user">
 						<option value="0"<?php echo ( !$t_new_user ) ? " selected" : "";?>>&nbsp;</option>
 						<option value="1"<?php echo ( $t_new_user ) ? " selected" : "";?>><i>QA/Testers</i></option>
-<?php
-// Populate user drop-down here...
+<?php // Populate user drop-down here...
 foreach( $tester_ref_arr as $key => $value ) {
 	echo "						<option value='$key'";
 	echo ( $t_new_user === $key ) ? " selected" : "";
@@ -395,8 +380,7 @@ foreach( $tester_ref_arr as $key => $value ) {
 			</form>
 		</div>
 		<p>
-<?php
-$type_ref_arr = array(
+<?php $type_ref_arr = array(
 	0=>'Normal type',
 	1 => 'New issue',
 	2 => 'Note added',
@@ -467,90 +451,71 @@ $resolution_ref_arr = array(
 	90 => 'won\'t fix',
 );
 
-try {
-	$t_query = "SELECT * FROM $mbht_name WHERE";
-	if( $t_show_status ) {
-		$t_query .= " field_name='status' AND";
-	}
-	$t_query .= " date_modified BETWEEN $start_timestamp AND $end_timestamp";
-	if( $t_new_status ) {
-		if( $t_new_status < 999 ) {
-			$t_query .= ' AND new_value=' . $t_new_status;
-		} else {
-			$t_query .= ' AND (new_value=25 OR new_value=90)';
-		}
-	}
-	$t_query .= ';';
-	$sth = $dbh->query( $t_query );
-	$sth->setFetchMode( PDO::FETCH_ASSOC );
-
-	while( $row = $sth->fetch()) {
-		$user_id_arr[] = $row[ 'user_id' ];
-		$bug_id_arr[] = $row[ 'bug_id' ];
-		$field_name_arr[] = $row[ 'field_name' ];
-		$old_value_arr[] = $row[ 'old_value' ];
-		$new_value_arr[] = $row[ 'new_value' ];
-		$type_arr[] = $row[ 'type' ];
-		$date_modified_arr[] = $row[ 'date_modified' ];
+$t_query = "SELECT * FROM $mbht_name WHERE";
+if( $t_show_status ) {
+	$t_query .= " field_name='status' AND";
+}
+$t_query .= " date_modified BETWEEN $start_timestamp AND $end_timestamp";
+if( $t_new_status ) {
+	if( $t_new_status < 999 ) {
+		$t_query .= ' AND new_value=' . $t_new_status;
+	} else {
+		$t_query .= ' AND (new_value=25 OR new_value=90)';
 	}
 }
-catch( PDOException $e ) {
-	echo $e->getMessage();
+$t_query .= ';';
+$result = $dbh_mantisbt->query( $t_query );
+while( $row = $result->fetch_assoc()) {
+	$user_id_arr[] = (int) $row[ 'user_id' ];
+	$bug_id_arr[] = (int) $row[ 'bug_id' ];
+	$field_name_arr[] = $row[ 'field_name' ];
+	$old_value_arr[] = (int) $row[ 'old_value' ];
+	$new_value_arr[] = (int) $row[ 'new_value' ];
+	$type_arr[] = $row[ 'type' ];
+	$date_modified_arr[] = $row[ 'date_modified' ];
 }
+unset( $row ); $result->close();
 
 $issue_arr = array_unique( $bug_id_arr, SORT_NUMERIC );
 sort( $issue_arr, SORT_NUMERIC );
 
 foreach( array_unique( $user_id_arr, SORT_NUMERIC ) as $user_id ) {
-	try {
-		$sth = $dbh->query( "SELECT id, realname FROM $mut_name WHERE 1;" );
-		$sth->setFetchMode( PDO::FETCH_ASSOC );
-
-		while( $row = $sth->fetch()) {
-			$user_name_arr[ $row[ 'id' ]] = $row[ 'realname' ];
-		}
-	} catch( PDOException $e) {
-		echo $e->getMessage();
+	$result = $dbh_mantisbt->query( "SELECT id, realname FROM $mut_name WHERE 1;" );
+	while( $row = $result->fetch_assoc()) {
+		$user_name_arr[ $row[ 'id' ]] = $row[ 'realname' ];
 	}
+	unset( $row ); $result->close();
 }
 
 if( $t_new_project != 0 ){
 	$projects_arr[] = $t_new_project;
-	$projects_arr = array_merge( $projects_arr, get_all_accessible_subprojects( $t_new_project ));
+	$projects_arr = array_merge( $projects_arr, get_all_accessible_subprojects( $dbh_mantisbt, $t_new_project ));
 	sort( $projects_arr, SORT_NUMERIC );
 }
 foreach( $issue_arr as $bug_id) {
-	try {
-		$t_query = "SELECT id, handler_id, status, summary, date_submitted FROM $mbt_name WHERE id=$bug_id";
-		if( $t_new_project != 0 ) {
-			$t_query .= " AND project_id IN (" . implode( ',', $projects_arr ) . ")";
-		}
-		$sth = $dbh->query( $t_query );
-		$sth->setFetchMode( PDO::FETCH_ASSOC );
-		while( $row = $sth->fetch()) {
-			$t_issue_arr[] = $bug_id;
-			$handler_name_arr[ $bug_id ] = $user_name_arr[ $row[ 'handler_id' ]];
-			$status_arr[ $bug_id ] = $status_ref_arr[ $row[ 'status' ]];
-			$summary_arr[ $bug_id ] = $row[ 'summary' ];
-			$date_submitted_arr[ $bug_id ] = date( 'Y-m-d H:i', $row[ 'date_submitted' ]);
-		}
-	} catch( PDOException $e) {
-		echo $e->getMessage();
+	$t_query = "SELECT id, handler_id, status, summary, date_submitted FROM $mbt_name WHERE id=$bug_id";
+	if( $t_new_project != 0 ) {
+		$t_query .= " AND project_id IN (" . implode( ',', $projects_arr ) . ")";
 	}
+	$result = $dbh_mantisbt->query( $t_query );
+	while( $row = $result->fetch_assoc()) {
+		$t_issue_arr[] = $bug_id;
+		$handler_name_arr[ $bug_id ] = $user_name_arr[ $row[ 'handler_id' ]];
+		$status_arr[ $bug_id ] = $status_ref_arr[ $row[ 'status' ]];
+		$summary_arr[ $bug_id ] = $row[ 'summary' ];
+		$date_submitted_arr[ $bug_id ] = date( 'Y-m-d H:i', $row[ 'date_submitted' ]);
+	}
+	unset( $row ); $result->close();
 }
 $t_issue_arr = array_unique( $t_issue_arr, SORT_NUMERIC );
 $t_mantis_view_bug_url = "http://svn.ggpsystems.co.uk/mantis/view.php?id=";
 foreach( $t_issue_arr as $bug_id ) {
-    try {
-        $t_query = "SELECT value FROM $mcfst_name WHERE field_id=16 AND bug_id=$bug_id";
-        $sth = $dbh->query( $t_query );
-		$sth->setFetchMode( PDO::FETCH_ASSOC );
-		while( $row = $sth->fetch()) {
-            $t_tester = $row[ 'value' ];
-        }
-    } catch ( PDOException $e) {
-        echo $e->getMessage();
-    }
+	$t_query = "SELECT value FROM $mcfst_name WHERE field_id=16 AND bug_id=$bug_id";
+	$result = $dbh_mantisbt->query( $t_query );
+	while( $row = $result->fetch_assoc()) {
+		$t_tester = $row[ 'value' ];
+	}
+	unset( $row ); $result->close();
     $t_assigned_tester = '';
     if( $t_tester!='' ) {
         $t_assigned_tester .= ' (' . $tester_ref_arr[ $t_tester ] . ')';
@@ -589,8 +554,7 @@ foreach( $t_issue_arr as $bug_id ) {
 						<th>Field</th>
 						<th>Change</th>
 					</tr>
-<?php
-		$bug_history_arr = array_keys( $bug_id_arr, $bug_id );
+<?php	$bug_history_arr = array_keys( $bug_id_arr, $bug_id );
 		$t_mantis_url = "http://svn.ggpsystems.co.uk/mantis/bug_revision_view_page.php?";
 		$i = 1;
 		if( $t_final_status ) {
@@ -705,8 +669,11 @@ foreach( $t_issue_arr as $bug_id ) {
 				</tbody>
 			</table>
 			<br/>
-<?php
-	}
+		</p>
+	</div>
+</body>
+</html>
+<?php }
 }
 
 function check_selected( $p_var, $p_val = true ) {
@@ -721,52 +688,68 @@ function check_selected( $p_var, $p_val = true ) {
 	}
 }
 
-function get_accessible_subprojects( $p_project_id ) {
-	global $dbh;
+/**
+ * 
+ * @param mixed $p_dbh
+ * @param int $p_project_id
+ * @return array
+ */
+function get_accessible_subprojects( $p_dbh, $p_project_id ) {
 	$mpt_name = 'mantis_project_table';
 	$mpht_name = 'mantis_project_hierarchy_table';
-	
-	try {
-		$sth = $dbh->query( "SELECT DISTINCT p.id, p.name, ph.parent_id "
-				. "FROM $mpt_name p "
-				. "LEFT JOIN $mpht_name ph "
-				. "ON ph.child_id = p.id "
-				. "WHERE p.enabled = 1 "
-				. "AND ph.parent_id IS NOT NULL "
-				. "ORDER BY p.name" );
-		$sth->setFetchMode( PDO::FETCH_ASSOC );
-		$t_projects = array();
-		while( $row = $sth->fetch()) {
-			if( !isset( $t_projects[( int )$row[ 'parent_id' ]])) {
-				$t_projects[( int )$row[ 'parent_id' ]] = array();
-			}
-			array_push( $t_projects[( int )$row[ 'parent_id' ]], (int)$row[ 'id' ]);
-		}
-	} catch( PDOException $e) {
-		echo $e->getMessage();
-	}
+	$t_projects = array();
 
-	return $t_projects[( int )$p_project_id];
+	$result = $p_dbh->query( "SELECT DISTINCT p.id, p.name, ph.parent_id "
+			. "FROM $mpt_name p "
+			. "LEFT JOIN $mpht_name ph "
+			. "ON ph.child_id = p.id "
+			. "WHERE p.enabled = 1 "
+			. "AND ph.parent_id IS NOT NULL "
+			. "ORDER BY p.name" );
+	while( $row = $result->fetch_assoc() ) {
+		if( !isset( $t_projects[ (int) $row[ 'parent_id' ]])) {
+			$t_projects[ (int) $row[ 'parent_id' ]] = array();
+		}
+		array_push( $t_projects[ (int) $row[ 'parent_id' ]], (int) $row[ 'id' ]);
+	}
+	unset( $row ); $result->close();
+
+	return $t_projects[ (int) $p_project_id];
 }
 
-function get_all_accessible_subprojects( $p_project_id ) {
-	$t_todo = get_accessible_subprojects( $p_project_id );
+/**
+ * 
+ * @param mixed $p_dbh
+ * @param int $p_project_id
+ * @return array
+ */
+function get_all_accessible_subprojects( $p_dbh, $p_project_id ) {
+	$t_todo = get_accessible_subprojects( $p_dbh, $p_project_id );
 	$t_subprojects = array();
 	
 	while( $t_todo ) {
-		$t_elem = (int)array_shift( $t_todo );
+		$t_elem = (int) array_shift( $t_todo );
 		if( !in_array( $t_elem, $t_subprojects )){
 			array_push( $t_subprojects, $t_elem );
-			$t_todo = array_merge( $t_todo, get_all_accessible_subprojects($t_elem));
+			$t_todo = array_merge( $t_todo, get_all_accessible_subprojects($p_dbh, $t_elem));
 		}
 	}
 	
 	return $t_subprojects;
 }
 
-function print_subproject_list( $p_parent_id, $p_project_id = null, $p_filter_project_id = null, $p_trace = false, $p_parents = Array()) {
+/**
+ * 
+ * @param mixed $p_dbh
+ * @param int $p_parent_id
+ * @param int $p_project_id
+ * @param int $p_filter_project_id
+ * @param bool $p_trace
+ * @param array $p_parents
+ */
+function print_subproject_list( $p_dbh, $p_parent_id, $p_project_id = null, $p_filter_project_id = null, $p_trace = false, $p_parents = Array()) {
 	array_push( $p_parents, $p_parent_id );
-	$t_project_ids = get_accessible_subprojects($p_parent_id);
+	$t_project_ids = get_accessible_subprojects($p_dbh, $p_parent_id);
 	$t_project_count = count( $t_project_ids );
 	for( $i = 0; $i < $t_project_count; $i++ ){
 		$t_full_id = $t_id = $t_project_ids[ $i ];
@@ -776,31 +759,28 @@ function print_subproject_list( $p_parent_id, $p_project_id = null, $p_filter_pr
 			echo ">"
 				. str_repeat( '&nbsp;', count( $p_parents )) 
 				. str_repeat( '&raquo;', count( $p_parents )) . ' '
-				. project_get_field($t_id, 'name' ) . '</option>' . PHP_EOL;
-				print_subproject_list( $t_id, $p_project_id, $p_filter_project_id, $p_trace, $p_parents);
+				. project_get_field($p_dbh, $t_id, 'name' ) . '</option>' . PHP_EOL;
+				print_subproject_list( $p_dbh, $t_id, $p_project_id, $p_filter_project_id, $p_trace, $p_parents);
 		}
 	}
 }
 
-function project_get_field( $p_project_id, $p_field_name ) {
-	global $dbh;
+/**
+ * 
+ * @param mixed $p_dbh
+ * @param int $p_project_id
+ * @param string $p_field_name
+ * @return string
+ */
+function project_get_field( $p_dbh, $p_project_id, $p_field_name ) {
 	$mpt_name = 'mantis_project_table';
 	
-	try {
-		$sth = $dbh->query( "SELECT * FROM $mpt_name WHERE id=$p_project_id" );
-		$sth->setFetchMode( PDO::FETCH_ASSOC );
-		while( $row = $sth->fetch()) {
-			if( isset( $row[ $p_field_name ])) {
-				return $row[ $p_field_name ];
-			}
+	$result = $p_dbh->query( "SELECT * FROM $mpt_name WHERE id=$p_project_id" );
+	while( $row = $result->fetch_assoc()) {
+		if( isset( $row[ $p_field_name ])) {
+			return $row[ $p_field_name ];
 		}
-		return '';
-	} catch( PDOException $e) {
-		echo $e->getMessage();
 	}
+	unset( $row ); $result->close();
+	return '';
 }
-?>
-		</p>
-	</div>
-</body>
-</html>
