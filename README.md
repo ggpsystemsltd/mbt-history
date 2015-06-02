@@ -16,6 +16,6 @@ maintained under.
  * @author Murray Crane <murray.crane@ggpsystems.co.uk>
  * @copyright (c) 2015, GGP Systems Limited
  * @license BSD 3-clause license (see LICENSE)
- * @version 1.2
+ * @version 1.3
  */
 '''
