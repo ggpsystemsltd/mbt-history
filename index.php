@@ -70,7 +70,6 @@ $tester_ref_arr = array(
     'tim maxwell' => 'Tim Maxwell',
 );
 
-
 $mbht_name = 'mantis_bug_history_table';
 $mbt_name = 'mantis_bug_table';
 $mcfst_name = 'mantis_custom_field_string_table';
@@ -85,6 +84,8 @@ $dsn = array(
 	'hostspec' => "mysql.ggp.local",
 	'database' => "bugtracker"
 		);
+
+$version_string = " v1.3";
 
 use PDO;
 global $dbh;
@@ -282,7 +283,7 @@ if( !empty( $t_duration )) {
 		<div class="head">
 			<h1>GGP Systems Limited</h1>
 <?php
-echo "			<h2>$period_string in MantisBT</h2>" . PHP_EOL;
+echo "			<h2>$period_string in MantisBT $version_string</h2>" . PHP_EOL;
 ?>
 		</div>
 		<div>
