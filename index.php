@@ -51,6 +51,7 @@ $status_ref_arr = array(
 	85 => 'Merge',
 	87 => 'Deferred',
 	90 => 'Closed',
+	999 => 'Reopened or Closed',
 );
 
 $tester_ref_arr = array(
@@ -116,7 +117,7 @@ $t_start_date = filter_input( INPUT_POST, 'start_date', FILTER_VALIDATE_REGEXP, 
 $t_end_date = filter_input( INPUT_POST, 'end_date', FILTER_VALIDATE_REGEXP, array( 'options' => array( 'default' => 0, 'regexp' => '/^([1-9]|[12][0-9]|3[01])-([1-9]|1[012])-(19|20)\d\d$/' )));
 $t_new_project = filter_input( INPUT_POST, 'new_project', FILTER_VALIDATE_INT, array( 'options' => array( 'default' => 0 )));
 $t_final_status = filter_input( INPUT_POST, 'final_status', FILTER_VALIDATE_BOOLEAN, array( 'options' => array( 'default' => false )));
-$t_new_status = filter_input( INPUT_POST, 'new_status', FILTER_VALIDATE_INT, array( 'options' => array( 'default' => false, 'min_range' => 10, 'max_range' => 90 )));
+$t_new_status = filter_input( INPUT_POST, 'new_status', FILTER_VALIDATE_INT, array( 'options' => array( 'default' => false, 'min_range' => 10, 'max_range' => 999 )));
 $t_new_user = filter_input( INPUT_POST, 'new_user', FILTER_SANITIZE_STRING );
 $t_show = filter_input( INPUT_POST, 'show', FILTER_VALIDATE_REGEXP, array( 'options' => array( 'default' => 'status', 'regexp' => '/^status|all$/' )));
 $t_show_status = true;
@@ -472,7 +473,11 @@ try {
 	}
 	$t_query .= " date_modified BETWEEN $start_timestamp AND $end_timestamp";
 	if( $t_new_status ) {
-		$t_query .= ' AND new_value=' . $t_new_status;
+		if( $t_new_status < 999 ) {
+			$t_query .= ' AND new_value=' . $t_new_status;
+		} else {
+			$t_query .= ' AND (new_value=25 OR new_value=90)';
+		}
 	}
 	$t_query .= ';';
 	$sth = $dbh->query( $t_query );
